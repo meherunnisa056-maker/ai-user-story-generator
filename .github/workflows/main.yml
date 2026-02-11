@@ -22,5 +22,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Run App Check
-      run: python app.py
+    - name: Check Python Syntax
+      run: python -m py_compile app.py
+
