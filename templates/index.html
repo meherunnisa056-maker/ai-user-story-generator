@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI User Story Generator</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        textarea { width: 100%; height: 120px; }
+        .story-card {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        button { margin-top: 10px; padding: 8px 15px; }
+    </style>
+</head>
+<body>
+
+<h2>AI User Story Generator (Text / Image / Voice)</h2>
+
+<form method="POST" action="/generate" enctype="multipart/form-data">
+    <textarea name="requirement" placeholder="Enter requirement text..."></textarea>
+
+    <br><br>
+    🎤 <button type="button" onclick="startVoice()">Start Voice</button>
+    <input type="hidden" name="voice_text" id="voice_text">
+
+    <br><br>
+    🖼 <input type="file" name="image">
+
+    <br><br>
+    <button type="submit">Generate & Push to Jira</button>
+</form>
+
+<form method="POST" action="/clear">
+    <button type="submit">Clear All</button>
+</form>
+
+{% if output %}
+<hr>
+<h3>Generated Stories</h3>
+{{ output | safe }}
+{% endif %}
+
+<script>
+function startVoice() {
+    const recognition = new webkitSpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.start();
+
+    recognition.onresult = function(event) {
+        document.getElementById("voice_text").value =
+            event.results[0][0].transcript;
+        alert("Voice captured!");
+    };
+}
+</script>
+
+</body>
+</html>
