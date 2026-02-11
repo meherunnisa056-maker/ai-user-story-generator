@@ -2,30 +2,32 @@ from flask import Flask, render_template, request, redirect, url_for
 import os
 import base64
 import requests
-from PIL import Image
-import pytesseract
 from dotenv import load_dotenv
 from ai_logic import detect_role_action
 
+# ---------------------------------------
 # Load environment variables
+# ---------------------------------------
 load_dotenv()
 
 app = Flask(__name__)
 
-# 🔹 Tesseract path (update if needed)
-pytesseract.pytesseract.tesseract_cmd = r"C:\Users\SHAIK YOUSUF\Documents\5A6\tesseract.exe"
-
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# -------------------------------------------------
-# 🔹 JIRA AUTOMATIC PUSH FUNCTION (STEP-1 FIX)
-# -------------------------------------------------
+# ---------------------------------------
+# JIRA PUSH FUNCTION
+# ---------------------------------------
 def push_to_jira(summary, description):
     jira_domain = os.getenv("JIRA_DOMAIN")
     jira_email = os.getenv("JIRA_EMAIL")
     jira_api_token = os.getenv("JIRA_API_TOKEN")
     project_key = os.getenv("JIRA_PROJECT_KEY")
+
+    # If any env variable missing, skip Jira
+    if not all([jira_domain, jira_email, jira_api_token, project_key]):
+        print("❌ Missing Jira environment variables")
+        return None
 
     url = f"https://{jira_domain}/rest/api/3/issue"
 
@@ -42,7 +44,7 @@ def push_to_jira(summary, description):
         "fields": {
             "project": {"key": project_key},
             "summary": summary,
-            "issuetype": {"name": "Story"},   # ✅ FIXED (Task → Story)
+            "issuetype": {"name": "Story"},
             "description": {
                 "type": "doc",
                 "version": 1,
@@ -61,60 +63,56 @@ def push_to_jira(summary, description):
         }
     }
 
-    response = requests.post(url, headers=headers, json=payload)
+    try:
+        response = requests.post(url, headers=headers, json=payload)
 
-    if response.status_code == 201:
-        return response.json()["key"]
-    else:
-        print("❌ Jira Error:", response.status_code, response.text)
+        if response.status_code == 201:
+            return response.json().get("key")
+        else:
+            print("❌ Jira Error:", response.status_code, response.text)
+            return None
+
+    except Exception as e:
+        print("❌ Jira Exception:", e)
         return None
 
-# -------------------------------------------------
-# 🔹 ROUTES
-# -------------------------------------------------
+
+# ---------------------------------------
+# ROUTES
+# ---------------------------------------
 @app.route("/")
 def home():
     return render_template("index.html")
 
+
 @app.route("/generate", methods=["POST"])
 def generate():
     input_text = request.form.get("requirement", "").strip()
-    extracted_text = ""
 
-    # 🎤 Voice input
+    # Voice input
     voice_text = request.form.get("voice_text", "").strip()
     if voice_text:
         input_text += "\n" + voice_text
 
-    # 🖼 Image OCR
-    if "image" in request.files:
-        image = request.files["image"]
-        if image.filename:
-            path = os.path.join(UPLOAD_FOLDER, image.filename)
-            image.save(path)
-            extracted_text = pytesseract.image_to_string(Image.open(path))
-            input_text += "\n" + extracted_text
-
-    if not input_text.strip():
+    if not input_text:
         return render_template(
             "index.html",
-            output="<p style='color:red'>❌ Please enter text, voice, or image</p>"
+            output="<p style='color:red'>❌ Please enter some requirement text</p>"
         )
 
     stories_html = generate_user_stories(input_text)
 
-    return render_template(
-        "index.html",
-        output=stories_html
-    )
+    return render_template("index.html", output=stories_html)
+
 
 @app.route("/clear", methods=["POST"])
 def clear():
     return redirect(url_for("home"))
 
-# -------------------------------------------------
-# 🔹 USER STORY GENERATION + JIRA PUSH
-# -------------------------------------------------
+
+# ---------------------------------------
+# USER STORY GENERATION
+# ---------------------------------------
 def generate_user_stories(text):
     lines = [l.strip() for l in text.splitlines() if l.strip()]
     output = ""
@@ -135,7 +133,7 @@ def generate_user_stories(text):
         status = (
             f"✅ Pushed to Jira successfully (Issue: {jira_key})"
             if jira_key else
-            "❌ Jira push failed"
+            "⚠️ Jira not configured or push failed"
         )
 
         output += f"""
@@ -161,5 +159,10 @@ def generate_user_stories(text):
 
     return output
 
+
+# ---------------------------------------
+# PRODUCTION RUN (Railway)
+# ---------------------------------------
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
