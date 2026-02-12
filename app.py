@@ -1,11 +1,20 @@
 from flask import Flask, render_template, request
 from ai_logic import detect_role_action, generate_smart_why, get_article
-from jira_integration import push_to_jira
 
-# IMPORTANT: This variable name must be "app"
+# ---- SAFE JIRA IMPORT (Prevents Railway Crash) ----
+try:
+    from jira_integration import push_to_jira
+except:
+    def push_to_jira(summary, description):
+        return None
+
+# IMPORTANT: Railway requires this variable name
 app = Flask(__name__)
 
 
+# ---------------------------------------------------
+# Generate User Stories
+# ---------------------------------------------------
 def generate_user_stories(text):
     lines = [l.strip() for l in text.splitlines() if l.strip()]
     output = ""
@@ -22,6 +31,7 @@ def generate_user_stories(text):
             f"so that I can {why}."
         )
 
+        # Push to Jira (safe mode)
         jira_key = push_to_jira(
             summary=f"{role} – {action.capitalize()}",
             description=user_story
@@ -67,6 +77,9 @@ def generate_user_stories(text):
     return output
 
 
+# ---------------------------------------------------
+# Routes
+# ---------------------------------------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
     result = ""
@@ -79,6 +92,8 @@ def index():
     return render_template("index.html", result=result)
 
 
-# Required for local run
+# ---------------------------------------------------
+# Local Run (Not used by Railway, but needed for VS)
+# ---------------------------------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
