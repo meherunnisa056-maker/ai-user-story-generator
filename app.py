@@ -1,4 +1,7 @@
 from flask import Flask, render_template, request
+import os
+
+# Import AI logic functions
 from ai_logic import detect_role_action, generate_smart_why, get_article
 
 # ---- SAFE JIRA IMPORT (Prevents Railway Crash) ----
@@ -8,13 +11,15 @@ except:
     def push_to_jira(summary, description):
         return None
 
-# IMPORTANT: Railway requires this variable name
+# -----------------------------------------
+# Create Flask App (IMPORTANT for Railway)
+# -----------------------------------------
 app = Flask(__name__)
 
 
-# ---------------------------------------------------
+# -----------------------------------------
 # Generate User Stories
-# ---------------------------------------------------
+# -----------------------------------------
 def generate_user_stories(text):
     lines = [l.strip() for l in text.splitlines() if l.strip()]
     output = ""
@@ -31,7 +36,7 @@ def generate_user_stories(text):
             f"so that I can {why}."
         )
 
-        # Push to Jira (safe mode)
+        # Push to Jira (Safe mode)
         jira_key = push_to_jira(
             summary=f"{role} – {action.capitalize()}",
             description=user_story
@@ -77,9 +82,9 @@ def generate_user_stories(text):
     return output
 
 
-# ---------------------------------------------------
+# -----------------------------------------
 # Routes
-# ---------------------------------------------------
+# -----------------------------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
     result = ""
@@ -92,8 +97,9 @@ def index():
     return render_template("index.html", result=result)
 
 
-# ---------------------------------------------------
-# Local Run (Not used by Railway, but needed for VS)
-# ---------------------------------------------------
+# -----------------------------------------
+# Railway Production Run (IMPORTANT)
+# -----------------------------------------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
