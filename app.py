@@ -1,3 +1,11 @@
+from flask import Flask, render_template, request
+from ai_logic import detect_role_action, generate_smart_why, get_article
+from jira_integration import push_to_jira
+
+# IMPORTANT: This variable name must be "app"
+app = Flask(__name__)
+
+
 def generate_user_stories(text):
     lines = [l.strip() for l in text.splitlines() if l.strip()]
     output = ""
@@ -57,3 +65,20 @@ def generate_user_stories(text):
         """
 
     return output
+
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    result = ""
+
+    if request.method == "POST":
+        user_input = request.form.get("user_input", "")
+        if user_input.strip():
+            result = generate_user_stories(user_input)
+
+    return render_template("index.html", result=result)
+
+
+# Required for local run
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
