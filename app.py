@@ -1,105 +1,51 @@
-from flask import Flask, render_template, request
-import os
+from flask import Flask, request, render_template_string
 
-# Import AI logic functions
-from ai_logic import detect_role_action, generate_smart_why, get_article
-
-# ---- SAFE JIRA IMPORT (Prevents Railway Crash) ----
-try:
-    from jira_integration import push_to_jira
-except:
-    def push_to_jira(summary, description):
-        return None
-
-# -----------------------------------------
-# Create Flask App (IMPORTANT for Railway)
-# -----------------------------------------
 app = Flask(__name__)
 
+# Home route (IMPORTANT - fixes Not Found error)
+@app.route("/")
+def home():
+    return """
+    <h2>AI User Story Generator</h2>
+    <form method="POST" action="/generate">
+        <textarea name="text" rows="6" cols="60"
+        placeholder="Enter requirement here..."></textarea><br><br>
+        <button type="submit">Generate User Stories</button>
+    </form>
+    """
 
-# -----------------------------------------
-# Generate User Stories
-# -----------------------------------------
-def generate_user_stories(text):
+@app.route("/generate", methods=["POST"])
+def generate():
+    text = request.form.get("text")
+    if not text:
+        return "No input provided."
+
     lines = [l.strip() for l in text.splitlines() if l.strip()]
     output = ""
 
     for line in lines:
-        role, action = detect_role_action(line)
+        role = "User"
+        action = line
 
-        article = get_article(role)
-        why = generate_smart_why(role, action)
-
-        user_story = (
-            f"As {article} {role.lower()}, "
-            f"I want to {action.lower()} "
-            f"so that I can {why}."
-        )
-
-        # Push to Jira (Safe mode)
-        jira_key = push_to_jira(
-            summary=f"{role} – {action.capitalize()}",
-            description=user_story
-        )
-
-        status = (
-            f"✅ Pushed to Jira successfully (Issue: {jira_key})"
-            if jira_key else
-            "⚠️ Jira not configured or push failed"
-        )
+        user_story = f"As a {role}, I want to {action.lower()} so that I can achieve my goal."
 
         output += f"""
-        <div class="story-card">
-            <h3>Title</h3>
-            <p><b>{role} – {action.capitalize()}</b></p>
-
-            <h4>Who</h4>
-            <p>{role}</p>
-
-            <h4>What</h4>
-            <p>{action.capitalize()}</p>
-
-            <h4>Why</h4>
-            <p>{why.capitalize()}</p>
-
-            <h4>User Story</h4>
-            <p>{user_story}</p>
-
-            <h4>Acceptance Criteria</h4>
+        <div style="border:1px solid #ccc;padding:15px;margin:10px;">
+            <h3>{role} – {action.capitalize()}</h3>
+            <p><b>User Story:</b> {user_story}</p>
             <ul>
-                <li>The system shall allow the {role.lower()} to {action.lower()}.</li>
+                <li>The system shall allow the user to {action.lower()}.</li>
                 <li>The system shall validate inputs before processing.</li>
-                <li>The system shall display success or failure messages.</li>
-                <li>The feature shall follow security best practices.</li>
-                <li>The feature shall work across supported devices and browsers.</li>
+                <li>The system shall show success or failure messages.</li>
             </ul>
-
-            <h4>Status</h4>
-            <p>{status}</p>
         </div>
         """
 
-    return output
+    return f"""
+    <h2>Generated User Stories</h2>
+    {output}
+    <br><a href="/">⬅ Back</a>
+    """
 
-
-# -----------------------------------------
-# Routes
-# -----------------------------------------
-@app.route("/", methods=["GET", "POST"])
-def index():
-    result = ""
-
-    if request.method == "POST":
-        user_input = request.form.get("user_input", "")
-        if user_input.strip():
-            result = generate_user_stories(user_input)
-
-    return render_template("index.html", result=result)
-
-
-# -----------------------------------------
-# Railway Production Run (IMPORTANT)
-# -----------------------------------------
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=5000)
