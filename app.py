@@ -1,20 +1,24 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, flash
 import os
+from werkzeug.utils import secure_filename
 
-# Optional imports (safe for Railway)
+# Optional imports (Railway safe)
 try:
     from PIL import Image
     import pytesseract
+    OCR_AVAILABLE = True
 except:
-    pytesseract = None
+    OCR_AVAILABLE = False
 
 # AI logic import
 from ai_logic import detect_role_action, generate_smart_why, get_article
 
-# Safe Jira import (prevents Railway crash)
+# Safe Jira import
 try:
     from jira_integration import push_to_jira
+    JIRA_AVAILABLE = True
 except:
+    JIRA_AVAILABLE = False
     def push_to_jira(summary, description):
         return None
 
@@ -23,9 +27,13 @@ except:
 # Flask App
 # ---------------------------------------------------
 app = Flask(__name__)
+app.secret_key = "railway-safe-secret-key"
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB limit
 
 
 # ---------------------------------------------------
@@ -48,7 +56,7 @@ def generate_user_stories(text):
         try:
             why = generate_smart_why(role, action)
         except:
-            why = "achieve my goal efficiently"
+            why = "complete my task efficiently"
 
         user_story = (
             f"As {article} {role.lower()}, "
@@ -56,15 +64,17 @@ def generate_user_stories(text):
             f"so that I can {why}."
         )
 
-        # Safe Jira push
+        # Jira push safe
         jira_key = None
-        try:
-            jira_key = push_to_jira(
-                summary=f"{role} – {action.capitalize()}",
-                description=user_story
-            )
-        except:
-            jira_key = None
+
+        if JIRA_AVAILABLE:
+            try:
+                jira_key = push_to_jira(
+                    summary=f"{role} – {action.capitalize()}",
+                    description=user_story
+                )
+            except:
+                jira_key = None
 
         status = (
             f"✅ Pushed to Jira successfully (Issue: {jira_key})"
@@ -131,15 +141,21 @@ def generate():
         input_text += "\n" + voice_text
 
 
-    # Image input (safe OCR)
-    if "image" in request.files:
+    # Image input (OCR safe)
+    if OCR_AVAILABLE and "image" in request.files:
 
         image = request.files["image"]
 
-        if image.filename != "" and pytesseract is not None:
+        if image and image.filename != "":
 
             try:
-                path = os.path.join(UPLOAD_FOLDER, image.filename)
+                filename = secure_filename(image.filename)
+
+                path = os.path.join(
+                    app.config["UPLOAD_FOLDER"],
+                    filename
+                )
+
                 image.save(path)
 
                 extracted_text = pytesseract.image_to_string(
@@ -148,10 +164,11 @@ def generate():
 
                 input_text += "\n" + extracted_text
 
-            except:
-                pass
+            except Exception as e:
+                print("OCR Error:", e)
 
 
+    # Validation
     if not input_text.strip():
 
         return render_template(
@@ -177,7 +194,7 @@ def clear():
 
 
 # ---------------------------------------------------
-# Railway / Production Run
+# Railway Production Run
 # ---------------------------------------------------
 if __name__ == "__main__":
 
