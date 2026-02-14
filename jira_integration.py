@@ -2,43 +2,69 @@ import os
 import requests
 from requests.auth import HTTPBasicAuth
 
-JIRA_EMAIL = os.getenv("JIRA_EMAIL")
-JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN")
-JIRA_DOMAIN = os.getenv("JIRA_DOMAIN")
-JIRA_PROJECT_KEY = os.getenv("JIRA_PROJECT_KEY")
-
 
 def push_to_jira(summary, description):
 
-    if not all([JIRA_EMAIL, JIRA_API_TOKEN, JIRA_DOMAIN, JIRA_PROJECT_KEY]):
-        print("Jira environment variables missing")
+    JIRA_URL = os.getenv("JIRA_URL")
+    JIRA_EMAIL = os.getenv("JIRA_EMAIL")
+    JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN")
+    JIRA_PROJECT_KEY = os.getenv("JIRA_PROJECT_KEY")
+
+    if not all([JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN, JIRA_PROJECT_KEY]):
+        print("Missing Jira environment variables")
         return None
 
-    url = f"https://{JIRA_DOMAIN}/rest/api/3/issue"
+    url = f"{JIRA_URL}/rest/api/3/issue"
 
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json"
+    # Jira Cloud requires ADF format for description
+    adf_description = {
+        "type": "doc",
+        "version": 1,
+        "content": [
+            {
+                "type": "paragraph",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": description
+                    }
+                ]
+            }
+        ]
     }
 
     payload = {
         "fields": {
-            "project": {"key": JIRA_PROJECT_KEY},
+            "project": {
+                "key": JIRA_PROJECT_KEY
+            },
             "summary": summary,
-            "description": description,
-            "issuetype": {"name": "Story"}
+            "description": adf_description,
+            "issuetype": {
+                "name": "Task"
+            }
         }
     }
 
-    response = requests.post(
-        url,
-        json=payload,
-        headers=headers,
-        auth=HTTPBasicAuth(JIRA_EMAIL, JIRA_API_TOKEN)
-    )
+    try:
+        response = requests.post(
+            url,
+            json=payload,
+            auth=HTTPBasicAuth(JIRA_EMAIL, JIRA_API_TOKEN),
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            }
+        )
 
-    if response.status_code == 201:
-        return response.json()["key"]
-    else:
-        print(response.text)
+        print("Jira Status:", response.status_code)
+        print("Jira Response:", response.text)
+
+        if response.status_code == 201:
+            return response.json()["key"]
+
+        return None
+
+    except Exception as e:
+        print("Jira Error:", e)
         return None
