@@ -1,6 +1,5 @@
-Flask==3.0.0
-gunicorn==21.2.0
-requests==2.31.0
-jira==3.5.2
-Pillow==10.3.0
-pytesseract==0.3.10
+Flask
+gunicorn
+requests
+Pillow
+pytesseract
