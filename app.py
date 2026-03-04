@@ -18,7 +18,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 # -------------------------------------------------
-# USER STORY GENERATOR
+# USER STORY GENERATION
 # -------------------------------------------------
 def generate_user_stories(text):
 
@@ -39,7 +39,6 @@ def generate_user_stories(text):
             f"so that I can {why.lower()}."
         )
 
-        # Push to Jira
         jira_key = push_to_jira(title, user_story)
 
         status = (
@@ -50,34 +49,14 @@ def generate_user_stories(text):
 
         output += f"""
         <div class="story-card">
-
         <h3>Title</h3>
         <p><b>{title}</b></p>
-
-        <h4>Who</h4>
-        <p>{role} — The person who interacts with the system.</p>
-
-        <h4>What</h4>
-        <p>{action.capitalize()} — The functionality the user wants to perform.</p>
-
-        <h4>Why</h4>
-        <p>{why.capitalize()} — The benefit the user gets.</p>
 
         <h4>User Story</h4>
         <p>{user_story}</p>
 
-        <h4>Acceptance Criteria</h4>
-        <ul>
-        <li>The system shall allow the {role.lower()} to {action.lower()}.</li>
-        <li>The system shall validate inputs properly.</li>
-        <li>The system shall display appropriate success or error messages.</li>
-        <li>The system shall ensure data security and integrity.</li>
-        <li>The feature shall work across supported devices and browsers.</li>
-        </ul>
-
         <h4>Status</h4>
         <p>{status}</p>
-
         </div>
         """
 
@@ -85,33 +64,26 @@ def generate_user_stories(text):
 
 
 # -------------------------------------------------
-# HOME PAGE
+# HOME ROUTE
 # -------------------------------------------------
 @app.route("/", methods=["GET"])
 def home():
-    return render_template("index.html", output="")
+    return render_template("index.html", output="", input_text="")
 
 
 # -------------------------------------------------
-# GENERATE ROUTE (FIXED VOICE + IMAGE LOGIC)
+# GENERATE ROUTE (VOICE + IMAGE + TEXT FIXED)
 # -------------------------------------------------
 @app.route("/generate", methods=["POST"])
 def generate():
 
-    # 1️⃣ Typed input
     typed_text = request.form.get("requirement", "").strip()
-
-    # 2️⃣ Voice input
     voice_text = request.form.get("voice_text", "").strip()
-
-    # 3️⃣ Image input
     image = request.files.get("image")
 
     input_text = ""
 
-    # 🎯 PRIORITY LOGIC
-    # Voice > Image > Typed
-
+    # Priority: Voice > Image > Typed
     if voice_text:
         input_text = voice_text
 
@@ -121,6 +93,7 @@ def generate():
 
         try:
             extracted = pytesseract.image_to_string(Image.open(path)).strip()
+            print("Extracted OCR:", extracted)
             input_text = extracted
         except:
             input_text = ""
@@ -133,12 +106,17 @@ def generate():
     if not input_text:
         return render_template(
             "index.html",
-            output="<p style='color:red'>Please enter input</p>"
+            output="<p style='color:red'>Please enter input</p>",
+            input_text=""
         )
 
     stories = generate_user_stories(input_text)
 
-    return render_template("index.html", output=stories)
+    return render_template(
+        "index.html",
+        output=stories,
+        input_text=input_text
+    )
 
 
 # -------------------------------------------------

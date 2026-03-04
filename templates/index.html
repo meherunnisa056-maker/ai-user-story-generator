@@ -20,7 +20,10 @@
 <h2>AI User Story Generator (Text / Image / Voice)</h2>
 
 <form method="POST" action="/generate" enctype="multipart/form-data">
-    <textarea name="requirement" placeholder="Enter requirement text..."></textarea>
+    
+    <textarea name="requirement" placeholder="Enter requirement text...">
+{{ input_text }}
+    </textarea>
 
     <br><br>
     🎤 <button type="button" onclick="startVoice()">Start Voice</button>
@@ -45,14 +48,41 @@
 
 <script>
 function startVoice() {
-    const recognition = new webkitSpeechRecognition();
+
+    const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+        alert("Speech Recognition not supported in this browser.");
+        return;
+    }
+
+    const recognition = new SpeechRecognition();
+
     recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+
     recognition.start();
 
     recognition.onresult = function(event) {
-        document.getElementById("voice_text").value =
-            event.results[0][0].transcript;
-        alert("Voice captured!");
+
+        const transcript = event.results[0][0].transcript;
+
+        console.log("Voice Transcript:", transcript);
+
+        // Put text inside textarea
+        document.querySelector("textarea[name='requirement']").value = transcript;
+
+        // Store in hidden field
+        document.getElementById("voice_text").value = transcript;
+
+        alert("Voice captured successfully!");
+    };
+
+    recognition.onerror = function(event) {
+        console.log("Voice Error:", event.error);
+        alert("Voice Error: " + event.error);
     };
 }
 </script>
