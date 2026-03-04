@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for
 import os
 
-# Optional OCR support
+# OCR imports
 try:
     from PIL import Image
     import pytesseract
@@ -17,9 +17,9 @@ UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
-# ---------------------------------------------------
-# Generate User Stories
-# ---------------------------------------------------
+# -------------------------------------------------
+# USER STORY GENERATOR
+# -------------------------------------------------
 def generate_user_stories(text):
 
     lines = [l.strip() for l in text.splitlines() if l.strip()]
@@ -28,9 +28,7 @@ def generate_user_stories(text):
     for line in lines:
 
         role, action = detect_role_action(line)
-
         article = get_article(role)
-
         why = generate_smart_why(role, action)
 
         title = f"{role} – {action.capitalize()}"
@@ -86,45 +84,53 @@ def generate_user_stories(text):
     return output
 
 
-# ---------------------------------------------------
-# Home
-# ---------------------------------------------------
+# -------------------------------------------------
+# HOME PAGE
+# -------------------------------------------------
 @app.route("/", methods=["GET"])
 def home():
     return render_template("index.html", output="")
 
 
-# ---------------------------------------------------
-# Generate
-# ---------------------------------------------------
+# -------------------------------------------------
+# GENERATE ROUTE (FIXED VOICE + IMAGE LOGIC)
+# -------------------------------------------------
 @app.route("/generate", methods=["POST"])
 def generate():
 
-    input_text = request.form.get("requirement", "").strip()
+    # 1️⃣ Typed input
+    typed_text = request.form.get("requirement", "").strip()
 
-    # Voice input
+    # 2️⃣ Voice input
     voice_text = request.form.get("voice_text", "").strip()
 
+    # 3️⃣ Image input
+    image = request.files.get("image")
+
+    input_text = ""
+
+    # 🎯 PRIORITY LOGIC
+    # Voice > Image > Typed
+
     if voice_text:
-        input_text += "\n" + voice_text
+        input_text = voice_text
 
-    # Image OCR
-    if "image" in request.files and pytesseract:
+    elif image and image.filename and pytesseract:
+        path = os.path.join(UPLOAD_FOLDER, image.filename)
+        image.save(path)
 
-        image = request.files["image"]
+        try:
+            extracted = pytesseract.image_to_string(Image.open(path)).strip()
+            input_text = extracted
+        except:
+            input_text = ""
 
-        if image.filename:
+    else:
+        input_text = typed_text
 
-            path = os.path.join(UPLOAD_FOLDER, image.filename)
-
-            image.save(path)
-
-            extracted = pytesseract.image_to_string(Image.open(path))
-
-            input_text += "\n" + extracted
+    print("Final Input Sent To AI:", input_text)
 
     if not input_text:
-
         return render_template(
             "index.html",
             output="<p style='color:red'>Please enter input</p>"
@@ -135,19 +141,17 @@ def generate():
     return render_template("index.html", output=stories)
 
 
-# ---------------------------------------------------
-# Clear
-# ---------------------------------------------------
+# -------------------------------------------------
+# CLEAR ROUTE
+# -------------------------------------------------
 @app.route("/clear", methods=["POST"])
 def clear():
     return redirect(url_for("home"))
 
 
-# ---------------------------------------------------
-# Railway run
-# ---------------------------------------------------
+# -------------------------------------------------
+# RUN APP
+# -------------------------------------------------
 if __name__ == "__main__":
-
     port = int(os.environ.get("PORT", 5000))
-
     app.run(host="0.0.0.0", port=port)
