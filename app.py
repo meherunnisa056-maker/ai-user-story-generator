@@ -18,7 +18,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 # -------------------------------------------------
-# USER STORY GENERATION
+# USER STORY GENERATION FUNCTION
 # -------------------------------------------------
 def generate_user_stories(text):
 
@@ -39,6 +39,7 @@ def generate_user_stories(text):
             f"so that I can {why.lower()}."
         )
 
+        # Push to Jira
         jira_key = push_to_jira(title, user_story)
 
         status = (
@@ -47,16 +48,37 @@ def generate_user_stories(text):
             "⚠️ Jira push failed"
         )
 
+        # FULL OUTPUT BLOCK
         output += f"""
         <div class="story-card">
+
         <h3>Title</h3>
         <p><b>{title}</b></p>
+
+        <h4>Who</h4>
+        <p>{role} — The person who interacts with the system.</p>
+
+        <h4>What</h4>
+        <p>{action.capitalize()} — The functionality the user wants to perform.</p>
+
+        <h4>Why</h4>
+        <p>{why.capitalize()} — The benefit the user gets.</p>
 
         <h4>User Story</h4>
         <p>{user_story}</p>
 
+        <h4>Acceptance Criteria</h4>
+        <ul>
+        <li>The system shall allow the {role.lower()} to {action.lower()}.</li>
+        <li>The system shall validate inputs properly.</li>
+        <li>The system shall display appropriate success or error messages.</li>
+        <li>The system shall ensure data security and integrity.</li>
+        <li>The feature shall work across supported devices and browsers.</li>
+        </ul>
+
         <h4>Status</h4>
         <p>{status}</p>
+
         </div>
         """
 
@@ -72,7 +94,7 @@ def home():
 
 
 # -------------------------------------------------
-# GENERATE ROUTE (VOICE + IMAGE + TEXT FIXED)
+# GENERATE ROUTE
 # -------------------------------------------------
 @app.route("/generate", methods=["POST"])
 def generate():
