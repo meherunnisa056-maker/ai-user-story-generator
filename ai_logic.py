@@ -1,23 +1,22 @@
 # -------------------------------------------------
-# ROLE DETECTION
+# ROLE + ACTION DETECTION (Improved)
 # -------------------------------------------------
+
 def detect_role_action(text):
 
     text = text.strip()
 
     if not text:
-        return "User", "perform action"
+        return "User", "perform an action"
 
     words = text.split()
 
-    # Words that are NOT roles
     invalid_roles = [
         "biometric", "authentication", "login", "logout",
         "payment", "checkout", "otp", "password",
         "face", "fingerprint", "system", "application"
     ]
 
-    # Valid roles
     valid_roles = [
         "user", "admin", "customer", "buyer", "seller",
         "student", "teacher", "employee", "manager"
@@ -25,33 +24,28 @@ def detect_role_action(text):
 
     first_word = words[0].lower()
 
-    # If first word is a valid role → use it
+    # Case 1: Valid role detected
     if first_word in valid_roles and len(words) > 1:
-
-        role = words[0]
+        role = words[0].capitalize()
         action = " ".join(words[1:])
+        return role, action
 
-        return role.capitalize(), action
-
-    # If first word is invalid role → default to User
+    # Case 2: Invalid role word → treat entire text as action
     if first_word in invalid_roles:
-
         return "User", text
 
-    # Default logic
+    # Case 3: Multiple words but first not valid role
     if len(words) > 1:
+        return "User", text
 
-        role = words[0]
-        action = " ".join(words[1:])
-
-        return role.capitalize(), action
-
-    return "User", text
+    # Case 4: Single word input → convert noun to action phrase
+    return "User", f"access {text}"
 
 
 # -------------------------------------------------
 # SMART WHY GENERATOR
 # -------------------------------------------------
+
 def generate_smart_why(role, action):
 
     action = action.lower()
@@ -99,11 +93,11 @@ def generate_smart_why(role, action):
 # -------------------------------------------------
 # ARTICLE FIX (a / an)
 # -------------------------------------------------
+
 def get_article(word):
 
     word = word.lower()
 
-    # Special cases
     special_a = ["user", "university", "unique"]
 
     if word in special_a:
@@ -115,3 +109,37 @@ def get_article(word):
         return "an"
 
     return "a"
+
+
+# -------------------------------------------------
+# USER STORY GENERATOR (MAIN FUNCTION)
+# -------------------------------------------------
+
+def generate_user_story(input_text):
+
+    role, action = detect_role_action(input_text)
+
+    why = generate_smart_why(role, action)
+
+    article = get_article(role)
+
+    title = f"{role} – {action.capitalize()}"
+
+    user_story = f"As {article} {role.lower()}, I want to {action.lower()} so that I can {why}."
+
+    acceptance_criteria = [
+        f"The system shall allow the {role.lower()} to {action.lower()}.",
+        "The system shall validate inputs properly.",
+        "The system shall display appropriate success or error messages.",
+        "The system shall ensure data security and integrity.",
+        "The feature shall work across supported devices and browsers."
+    ]
+
+    return {
+        "Title": title,
+        "Role": role,
+        "Action": action,
+        "Why": why,
+        "User Story": user_story,
+        "Acceptance Criteria": acceptance_criteria
+    }
