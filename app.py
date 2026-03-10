@@ -8,7 +8,17 @@ try:
 except:
     pytesseract = None
 
-from ai_logic import detect_role_action, generate_smart_why, get_article
+# AI logic imports
+from ai_logic import (
+    detect_role_action,
+    get_article,
+    generate_description,
+    generate_user_story,
+    generate_functional_requirements,
+    generate_acceptance_criteria
+)
+
+# Jira integration
 from jira_integration import push_to_jira
 
 app = Flask(__name__)
@@ -18,29 +28,33 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 # -------------------------------------------------
-# USER STORY GENERATION FUNCTION
+# GENERATE USER STORIES
 # -------------------------------------------------
+
 def generate_user_stories(text):
 
     lines = [l.strip() for l in text.splitlines() if l.strip()]
+
     output = ""
 
     for line in lines:
 
         role, action = detect_role_action(line)
+
         article = get_article(role)
-        why = generate_smart_why(role, action)
+
+        description = generate_description(role, action)
+
+        story = generate_user_story(role, action)
+
+        functional_reqs = generate_functional_requirements(role, action)
+
+        acceptance_criteria = generate_acceptance_criteria(role, action)
 
         title = f"{role} – {action.capitalize()}"
 
-        user_story = (
-            f"As {article} {role.lower()}, "
-            f"I want to {action.lower()} "
-            f"so that I can {why.lower()}."
-        )
-
         # Push to Jira
-        jira_key = push_to_jira(title, user_story)
+        jira_key = push_to_jira(title, story)
 
         status = (
             f"✅ Successfully pushed to Jira ({jira_key})"
@@ -48,32 +62,38 @@ def generate_user_stories(text):
             "⚠️ Jira push failed"
         )
 
-        # FULL OUTPUT BLOCK
+        # Convert lists to HTML
+        functional_html = ""
+        for req in functional_reqs:
+            functional_html += f"<li>{req}</li>"
+
+        acceptance_html = ""
+        for ac in acceptance_criteria:
+            acceptance_html += f"<li>{ac}</li>"
+
         output += f"""
         <div class="story-card">
 
         <h3>Title</h3>
         <p><b>{title}</b></p>
 
-        <h4>Who</h4>
-        <p>{role} — The person who interacts with the system.</p>
+        <h4>Actor</h4>
+        <p>{role}</p>
 
-        <h4>What</h4>
-        <p>{action.capitalize()} — The functionality the user wants to perform.</p>
-
-        <h4>Why</h4>
-        <p>{why.capitalize()} — The benefit the user gets.</p>
+        <h4>Description</h4>
+        <p>{description}</p>
 
         <h4>User Story</h4>
-        <p>{user_story}</p>
+        <p>{story}</p>
+
+        <h4>Functional Requirements</h4>
+        <ul>
+        {functional_html}
+        </ul>
 
         <h4>Acceptance Criteria</h4>
         <ul>
-        <li>The system shall allow the {role.lower()} to {action.lower()}.</li>
-        <li>The system shall validate inputs properly.</li>
-        <li>The system shall display appropriate success or error messages.</li>
-        <li>The system shall ensure data security and integrity.</li>
-        <li>The feature shall work across supported devices and browsers.</li>
+        {acceptance_html}
         </ul>
 
         <h4>Status</h4>
@@ -86,64 +106,60 @@ def generate_user_stories(text):
 
 
 # -------------------------------------------------
-# HOME ROUTE
+# HOME PAGE
 # -------------------------------------------------
+
 @app.route("/", methods=["GET"])
 def home():
-    return render_template("index.html", output="", input_text="")
+    return render_template("index.html", output="")
 
 
 # -------------------------------------------------
-# GENERATE ROUTE
+# GENERATE STORIES
 # -------------------------------------------------
+
 @app.route("/generate", methods=["POST"])
 def generate():
 
-    typed_text = request.form.get("requirement", "").strip()
+    input_text = request.form.get("requirement", "").strip()
+
+    # Voice input
     voice_text = request.form.get("voice_text", "").strip()
-    image = request.files.get("image")
 
-    input_text = ""
-
-    # Priority: Voice > Image > Typed
     if voice_text:
-        input_text = voice_text
+        input_text += "\n" + voice_text
 
-    elif image and image.filename and pytesseract:
-        path = os.path.join(UPLOAD_FOLDER, image.filename)
-        image.save(path)
+    # Image OCR
+    if "image" in request.files and pytesseract:
 
-        try:
-            extracted = pytesseract.image_to_string(Image.open(path)).strip()
-            print("Extracted OCR:", extracted)
-            input_text = extracted
-        except:
-            input_text = ""
+        image = request.files["image"]
 
-    else:
-        input_text = typed_text
+        if image.filename:
 
-    print("Final Input Sent To AI:", input_text)
+            path = os.path.join(UPLOAD_FOLDER, image.filename)
+
+            image.save(path)
+
+            extracted_text = pytesseract.image_to_string(Image.open(path))
+
+            input_text += "\n" + extracted_text
 
     if not input_text:
+
         return render_template(
             "index.html",
-            output="<p style='color:red'>Please enter input</p>",
-            input_text=""
+            output="<p style='color:red'>Please enter input</p>"
         )
 
     stories = generate_user_stories(input_text)
 
-    return render_template(
-        "index.html",
-        output=stories,
-        input_text=input_text
-    )
+    return render_template("index.html", output=stories)
 
 
 # -------------------------------------------------
-# CLEAR ROUTE
+# CLEAR OUTPUT
 # -------------------------------------------------
+
 @app.route("/clear", methods=["POST"])
 def clear():
     return redirect(url_for("home"))
@@ -152,6 +168,9 @@ def clear():
 # -------------------------------------------------
 # RUN APP
 # -------------------------------------------------
+
 if __name__ == "__main__":
+
     port = int(os.environ.get("PORT", 5000))
+
     app.run(host="0.0.0.0", port=port)

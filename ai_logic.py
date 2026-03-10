@@ -1,5 +1,5 @@
 # -------------------------------------------------
-# ROLE + ACTION DETECTION (Improved)
+# ROLE AND ACTION DETECTION
 # -------------------------------------------------
 
 def detect_role_action(text):
@@ -11,83 +11,22 @@ def detect_role_action(text):
 
     words = text.split()
 
-    invalid_roles = [
-        "biometric", "authentication", "login", "logout",
-        "payment", "checkout", "otp", "password",
-        "face", "fingerprint", "system", "application"
-    ]
-
     valid_roles = [
         "user", "admin", "customer", "buyer", "seller",
-        "student", "teacher", "employee", "manager"
+        "student", "teacher", "employee", "manager",
+        "doctor", "patient", "passenger", "driver"
     ]
 
     first_word = words[0].lower()
 
-    # Case 1: Valid role detected
     if first_word in valid_roles and len(words) > 1:
         role = words[0].capitalize()
         action = " ".join(words[1:])
-        return role, action
-
-    # Case 2: Invalid role word → treat entire text as action
-    if first_word in invalid_roles:
-        return "User", text
-
-    # Case 3: Multiple words but first not valid role
-    if len(words) > 1:
-        return "User", text
-
-    # Case 4: Single word input → convert noun to action phrase
-    return "User", f"access {text}"
-
-
-# -------------------------------------------------
-# SMART WHY GENERATOR
-# -------------------------------------------------
-
-def generate_smart_why(role, action):
-
-    action = action.lower()
-
-    if "login" in action:
-        return "securely access my account"
-
-    elif "register" in action or "signup" in action:
-        return "create and manage my account"
-
-    elif "logout" in action:
-        return "securely exit the system"
-
-    elif "upload" in action:
-        return "store my files safely"
-
-    elif "download" in action:
-        return "access my files when needed"
-
-    elif "delete" in action:
-        return "remove unnecessary data securely"
-
-    elif "update" in action or "edit" in action:
-        return "modify information accurately"
-
-    elif "create" in action:
-        return "add new information to the system"
-
-    elif "view" in action:
-        return "access information easily"
-
-    elif "search" in action:
-        return "find information quickly"
-
-    elif "payment" in action or "pay" in action:
-        return "complete my transaction securely"
-
-    elif "authentication" in action or "authenticate" in action:
-        return "verify my identity securely"
-
     else:
-        return "complete my task efficiently"
+        role = "User"
+        action = text
+
+    return role, action
 
 
 # -------------------------------------------------
@@ -103,43 +42,64 @@ def get_article(word):
     if word in special_a:
         return "a"
 
-    vowels = ["a", "e", "i", "o", "u"]
-
-    if word[0] in vowels:
+    if word[0] in ["a", "e", "i", "o", "u"]:
         return "an"
 
     return "a"
 
 
 # -------------------------------------------------
-# USER STORY GENERATOR (MAIN FUNCTION)
+# DESCRIPTION GENERATOR
 # -------------------------------------------------
 
-def generate_user_story(input_text):
+def generate_description(role, action):
 
-    role, action = detect_role_action(input_text)
+    return (
+        f"The system allows the {role.lower()} to {action.lower()} "
+        f"through the application interface while ensuring proper "
+        f"validation, security, and successful completion of the requested operation."
+    )
 
-    why = generate_smart_why(role, action)
 
-    article = get_article(role)
+# -------------------------------------------------
+# DETAILED USER STORY GENERATOR
+# -------------------------------------------------
 
-    title = f"{role} – {action.capitalize()}"
+def generate_user_story(role, action):
 
-    user_story = f"As {article} {role.lower()}, I want to {action.lower()} so that I can {why}."
+    return (
+        f"As a {role.lower()}, I want to {action.lower()} using the system "
+        f"so that I can successfully accomplish the intended task in an efficient "
+        f"and secure manner without facing operational difficulties."
+    )
 
-    acceptance_criteria = [
+
+# -------------------------------------------------
+# FUNCTIONAL REQUIREMENTS GENERATOR
+# -------------------------------------------------
+
+def generate_functional_requirements(role, action):
+
+    return [
         f"The system shall allow the {role.lower()} to {action.lower()}.",
-        "The system shall validate inputs properly.",
+        "The system shall provide a user interface for performing the requested operation.",
+        "The system shall validate the input data before processing the request.",
+        "The system shall process the request according to system rules.",
         "The system shall display appropriate success or error messages.",
-        "The system shall ensure data security and integrity.",
-        "The feature shall work across supported devices and browsers."
+        "The system shall securely store or update the related data in the system database."
     ]
 
-    return {
-        "Title": title,
-        "Role": role,
-        "Action": action,
-        "Why": why,
-        "User Story": user_story,
-        "Acceptance Criteria": acceptance_criteria
-    }
+
+# -------------------------------------------------
+# ACCEPTANCE CRITERIA GENERATOR
+# -------------------------------------------------
+
+def generate_acceptance_criteria(role, action):
+
+    return [
+        f"The {role.lower()} should be able to {action.lower()} successfully with valid inputs.",
+        "The system should validate user inputs before processing.",
+        "Invalid inputs should display appropriate error messages.",
+        "The system should maintain data integrity and security during the operation.",
+        "The feature should work correctly across supported devices and browsers."
+    ]
