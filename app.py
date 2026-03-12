@@ -10,8 +10,9 @@ except:
 from ai_logic import (
     detect_role_action,
     generate_smart_why,
-    get_article,
-    generate_description
+    generate_description,
+    generate_acceptance_criteria,
+    get_article
 )
 
 from jira_integration import push_to_jira
@@ -25,6 +26,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # -------------------------------------------------
 # USER STORY GENERATOR
 # -------------------------------------------------
+
 def generate_user_stories(text):
 
     lines = [l.strip() for l in text.splitlines() if l.strip()]
@@ -40,6 +42,10 @@ def generate_user_stories(text):
 
         description = generate_description(role, action)
 
+        criteria = generate_acceptance_criteria(role, action)
+
+        criteria_html = "".join([f"<li>{c}</li>" for c in criteria])
+
         title = f"{role} – {action.capitalize()}"
 
         user_story = (
@@ -48,7 +54,6 @@ def generate_user_stories(text):
             f"so that I can {why.lower()}."
         )
 
-        # Push to Jira
         jira_key = push_to_jira(title, user_story)
 
         status = (
@@ -80,12 +85,7 @@ def generate_user_stories(text):
 
         <h4>Acceptance Criteria</h4>
         <ul>
-        <li>The system shall allow the {role.lower()} to {action.lower()}.</li>
-        <li>The system shall validate inputs properly before processing the request.</li>
-        <li>The system shall ensure secure handling of user data.</li>
-        <li>The system shall display appropriate success or error messages.</li>
-        <li>The system shall ensure data integrity and reliability.</li>
-        <li>The feature shall function correctly across supported browsers and devices.</li>
+        {criteria_html}
         </ul>
 
         <h4>Status</h4>
@@ -97,29 +97,21 @@ def generate_user_stories(text):
     return output
 
 
-# -------------------------------------------------
-# HOME PAGE
-# -------------------------------------------------
 @app.route("/", methods=["GET"])
 def home():
     return render_template("index.html", output="")
 
 
-# -------------------------------------------------
-# GENERATE STORIES
-# -------------------------------------------------
 @app.route("/generate", methods=["POST"])
 def generate():
 
     input_text = request.form.get("requirement", "").strip()
 
-    # Voice input
     voice_text = request.form.get("voice_text", "").strip()
 
     if voice_text:
         input_text += "\n" + voice_text
 
-    # Image OCR
     if "image" in request.files and pytesseract:
 
         image = request.files["image"]
@@ -129,15 +121,15 @@ def generate():
             path = os.path.join(UPLOAD_FOLDER, image.filename)
             image.save(path)
 
-            extracted_text = pytesseract.image_to_string(Image.open(path))
+            extracted = pytesseract.image_to_string(Image.open(path))
 
-            input_text += "\n" + extracted_text
+            input_text += "\n" + extracted
 
     if not input_text:
 
         return render_template(
             "index.html",
-            output="<p style='color:red'>Please enter text, voice, or image input</p>"
+            output="<p style='color:red'>Please enter input</p>"
         )
 
     stories = generate_user_stories(input_text)
@@ -145,17 +137,11 @@ def generate():
     return render_template("index.html", output=stories)
 
 
-# -------------------------------------------------
-# CLEAR OUTPUT
-# -------------------------------------------------
 @app.route("/clear", methods=["POST"])
 def clear():
     return redirect(url_for("home"))
 
 
-# -------------------------------------------------
-# RUN APP
-# -------------------------------------------------
 if __name__ == "__main__":
 
     port = int(os.environ.get("PORT", 5000))
