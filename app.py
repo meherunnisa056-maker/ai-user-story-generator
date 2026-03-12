@@ -10,6 +10,7 @@ except:
 from ai_logic import (
     detect_role_action,
     generate_smart_why,
+    generate_user_story,
     generate_description,
     generate_acceptance_criteria,
     get_article
@@ -22,10 +23,6 @@ app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-
-# -------------------------------------------------
-# USER STORY GENERATOR
-# -------------------------------------------------
 
 def generate_user_stories(text):
 
@@ -42,19 +39,15 @@ def generate_user_stories(text):
 
         description = generate_description(role, action)
 
+        story = generate_user_story(role, action, why)
+
         criteria = generate_acceptance_criteria(role, action)
 
         criteria_html = "".join([f"<li>{c}</li>" for c in criteria])
 
         title = f"{role} – {action.capitalize()}"
 
-        user_story = (
-            f"As {article} {role.lower()}, "
-            f"I want to {action.lower()} "
-            f"so that I can {why.lower()}."
-        )
-
-        jira_key = push_to_jira(title, user_story)
+        jira_key = push_to_jira(title, story)
 
         status = (
             f"✅ Successfully pushed to Jira ({jira_key})"
@@ -69,19 +62,19 @@ def generate_user_stories(text):
         <p><b>{title}</b></p>
 
         <h4>Who</h4>
-        <p>{role} — The person who interacts with the system.</p>
+        <p>{role} — The person interacting with the system.</p>
 
         <h4>What</h4>
-        <p>{action.capitalize()} — The functionality the user wants to perform.</p>
+        <p>{action.capitalize()} — The functionality requested.</p>
 
         <h4>Why</h4>
-        <p>{why.capitalize()} — The benefit the user gets.</p>
+        <p>{why.capitalize()}</p>
 
         <h4>Description</h4>
         <p>{description}</p>
 
         <h4>User Story</h4>
-        <p>{user_story}</p>
+        <p>{story}</p>
 
         <h4>Acceptance Criteria</h4>
         <ul>
