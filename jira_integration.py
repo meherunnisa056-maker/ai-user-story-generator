@@ -64,3 +64,4 @@ def push_to_jira(summary, description):
         return response.json()["key"]
 
     return None
+
