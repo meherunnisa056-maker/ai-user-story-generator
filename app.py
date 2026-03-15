@@ -99,8 +99,9 @@ def home():
 def generate():
 
     input_text = request.form.get("requirement", "").strip()
-
     voice_text = request.form.get("voice_text", "").strip()
+
+    ocr_display = ""
 
     if voice_text:
         input_text += "\n" + voice_text
@@ -116,7 +117,16 @@ def generate():
 
             extracted = pytesseract.image_to_string(Image.open(path))
 
+            print("OCR TEXT:", extracted)
+
             input_text += "\n" + extracted
+
+            ocr_display = f"""
+            <div style="background:#f5f5f5;padding:10px;margin:10px 0;border-radius:6px">
+            <h3>Extracted Text From Image</h3>
+            <p>{extracted}</p>
+            </div>
+            """
 
     if not input_text:
 
@@ -127,7 +137,7 @@ def generate():
 
     stories = generate_user_stories(input_text)
 
-    return render_template("index.html", output=stories)
+    return render_template("index.html", output=ocr_display + stories)
 
 
 @app.route("/clear", methods=["POST"])
